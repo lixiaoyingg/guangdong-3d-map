@@ -21,7 +21,7 @@ export function createMap(geoData, scene) {
 
   // ─── Load wenli texture for top face ───
   const textureLoader = new THREE.TextureLoader();
-  const wenliTexture = textureLoader.load('/wenli.jpg');
+  const wenliTexture = textureLoader.load('./wenli.jpg');
   wenliTexture.wrapS = THREE.RepeatWrapping;
   wenliTexture.wrapT = THREE.RepeatWrapping;
 

@@ -143,8 +143,8 @@ function updateCameraAnimation(elapsed) {
 async function init() {
   // Load both Guangdong and China provinces data
   const [gdResponse, cnResponse] = await Promise.all([
-    fetch('/guangdong.json'),
-    fetch('/china_provinces.json'),
+    fetch('./guangdong.json'),
+    fetch('./china_provinces.json'),
   ]);
   const geoData = await gdResponse.json();
   const chinaData = await cnResponse.json();

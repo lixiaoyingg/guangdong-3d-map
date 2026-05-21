@@ -8,7 +8,7 @@ export function createBackground(scene) {
 
   // ─── Load wenli texture for ground ───
   const textureLoader = new THREE.TextureLoader();
-  const wenliTexture = textureLoader.load('/wenli.jpg');
+  const wenliTexture = textureLoader.load('./wenli.jpg');
   wenliTexture.wrapS = THREE.RepeatWrapping;
   wenliTexture.wrapT = THREE.RepeatWrapping;
 
