@@ -171,11 +171,10 @@ export function createMap(geoData, scene) {
 
       const lineGeometry = new THREE.BufferGeometry().setFromPoints(outlinePoints);
       const outlineMaterial = new THREE.LineBasicMaterial({
-        color: 0x00d4ff,
+        color: 0x00a2e0,
         transparent: true,
         opacity: 0,
         depthWrite: false,
-        blending: THREE.AdditiveBlending,
       });
       const outlineLine = new THREE.Line(lineGeometry, outlineMaterial);
       outlineGroup.add(outlineLine);
@@ -190,11 +189,10 @@ export function createMap(geoData, scene) {
       );
       const edgeGeom = new THREE.BufferGeometry().setFromPoints(edgePoints);
       const edgeMat = new THREE.LineBasicMaterial({
-        color: 0x1a8acd,
+        color: 0x116fa3,
         transparent: true,
         opacity: 0,
         depthWrite: false,
-        blending: THREE.AdditiveBlending,
       });
       topEdges.add(new THREE.Line(edgeGeom, edgeMat));
     });

@@ -256,13 +256,13 @@ function updateAnimation(elapsed, mapGroup, outlineGroup, topEdges, flowingLight
     outlineGroup.visible = true;
     outlineGroup.position.y = (extrudeDepth + 0.01) * easedGrow;
     outlineGroup.children.forEach(line => {
-      line.material.opacity = easedBorderFade * 0.8;
+      line.material.opacity = easedBorderFade * 0.40;
     });
 
     topEdges.visible = true;
     topEdges.position.y = (extrudeDepth + 0.015) * easedGrow;
     topEdges.children.forEach(line => {
-      line.material.opacity = easedBorderFade * 0.6;
+      line.material.opacity = easedBorderFade * 0.30;
     });
   } else {
     mapGroup.visible = false;
@@ -336,7 +336,7 @@ function updateAnimation(elapsed, mapGroup, outlineGroup, topEdges, flowingLight
   const totalDuration = anim.flowLightDelay + anim.flowLightDuration;
   if (elapsed > totalDuration) {
     flowingLights.update(time);
-    const breathe = 0.65 + 0.15 * Math.sin(time * 0.002);
+    const breathe = 0.35 + 0.10 * Math.sin(time * 0.002);
     outlineGroup.children.forEach(line => {
       line.material.opacity = breathe;
     });
