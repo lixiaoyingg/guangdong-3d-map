@@ -10,6 +10,7 @@ import { createBackground } from './background.js';
 import { createOutlineDrawing } from './outlineDrawing.js';
 import { createNeighborOutlines } from './neighborProvinces.js';
 import { computeCenterAndScale } from './geoUtils.js';
+import { createRipple } from './ripple.js';
 
 // ─── Scene setup ───
 const container = document.getElementById('map-container');
@@ -82,20 +83,24 @@ dirLight.position.set(5, 10, 7);
 scene.add(dirLight);
 
 // ─── Animation timing ───
-// Sequence: outline draw → map rises → labels fade in → camera moves → flowing light
+// Sequence: outline draw → map rises → labels fade in → camera moves → flowing light + ripple
 const anim = {
   startTime: null,
   outlineDuration: 1200,    // Phase 0: outline draws (0 → 1200ms)
   growDelay: 1300,           // Phase 1 starts (ms)
-  growDuration: 2000,        // Phase 1: map grows (1300 → 3300ms)
-  labelDelay: 3500,          // Phase 2: labels start (200ms after map done)
-  labelDuration: 1500,       // Phase 2: labels fade in (3500 → 5000ms)
-  camStart: 5100,            // Phase 3: camera starts moving (after labels done)
-  camEnd: 9200,              // Phase 3: camera arrives (5100 → 9200ms)
-  flowLightDelay: 9300,      // Phase 4: flowing light starts (after camera settles)
-  flowLightDuration: 2000,   // Phase 4: flowing light fade in (9300 → 11300ms)
+  growDuration: 1200,        // Phase 1: map grows (1300 → 2500ms) - Sped up
+  labelDelay: 2600,          // Phase 2: labels start (2600ms) - Sped up
+  labelDuration: 800,        // Phase 2: labels fade in (2600 → 3400ms) - Sped up
+  camStart: 3500,            // Phase 3: camera starts moving (after labels done) - Sped up
+  camEnd: 5500,              // Phase 3: camera arrives (3500 → 5500ms) - Sped up
+  flowLightDelay: 5500,      // Phase 4: flowing light starts (after camera settles) - Sped up
+  flowLightDuration: 1500,   // Phase 4: flowing light fade in (5500 → 7000ms) - Sped up
   neighborStart: 0.70,       // Neighbor outlines appear when growProgress reaches 70%
   cameraAnimDone: false,     // Flag: camera animation has finished
+
+  // Ripple timing config
+  rippleStart: 5500,         // Starts immediately after camera settles
+  rippleDuration: 2000,      // Ripple duration (spreads and fades out)
 };
 
 // ─── Camera animation path ───
@@ -153,6 +158,7 @@ async function init() {
   const { mapGroup, outlineGroup, topEdges, EXTRUDE_DEPTH } = createMap(geoData, scene);
   const flowingLights = createFlowingLight(geoData, scene);
   const labels = createLabels(geoData, scene, camera);
+  const ripple = createRipple(geoData, scene);
 
   // Create the outline drawing animation (glowing border that draws itself)
   const outlineDrawing = createOutlineDrawing(geoData, scene);
@@ -168,6 +174,7 @@ async function init() {
   flowingLights.group.visible = false;
   labels.group.visible = false;
   neighbors.setVisible(false);
+  ripple.setVisible(false);
 
   // Start animation
   setTimeout(() => {
@@ -181,7 +188,7 @@ async function init() {
       const elapsed = time - anim.startTime;
       // Update camera cinematic path
       updateCameraAnimation(elapsed);
-      updateAnimation(elapsed, mapGroup, outlineGroup, topEdges, flowingLights, labels, outlineDrawing, neighbors, EXTRUDE_DEPTH, time);
+      updateAnimation(elapsed, mapGroup, outlineGroup, topEdges, flowingLights, labels, outlineDrawing, neighbors, EXTRUDE_DEPTH, time, ripple);
     }
 
     // Only update controls when animation is done (user has control)
@@ -196,7 +203,7 @@ async function init() {
   requestAnimationFrame(animate);
 }
 
-function updateAnimation(elapsed, mapGroup, outlineGroup, topEdges, flowingLights, labels, outlineDrawing, neighbors, extrudeDepth, time) {
+function updateAnimation(elapsed, mapGroup, outlineGroup, topEdges, flowingLights, labels, outlineDrawing, neighbors, extrudeDepth, time, ripple) {
 
   // ══════════════════════════════════════════════════════
   // PHASE 0: Glow outline draws the province border
@@ -340,6 +347,11 @@ function updateAnimation(elapsed, mapGroup, outlineGroup, topEdges, flowingLight
     outlineGroup.children.forEach(line => {
       line.material.opacity = breathe;
     });
+  }
+
+  // Update ground water ripple animation
+  if (ripple) {
+    ripple.update(elapsed, anim.rippleStart, anim.rippleDuration);
   }
 }
 
