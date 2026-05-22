@@ -82,7 +82,8 @@ export function createFlowingLight(geoData, scene) {
       distances.push(distances[i - 1] + sampledPoints[i].distanceTo(sampledPoints[i - 1]));
     }
     const totalLength = distances[distances.length - 1];
-    if (totalLength < 0.5) return;
+    // 只保留长度大于 10.0 的广东主大陆边界，过滤掉孤立的沿海小岛和东沙群岛，防止在小岛上形成闭合的发光圈
+    if (totalLength < 10.0) return;
 
     // Create a smooth CatmullRomCurve3 from sampled points
     const curve = new THREE.CatmullRomCurve3(sampledPoints, true, 'centripetal', 0.5);
