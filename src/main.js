@@ -148,7 +148,7 @@ const animChina = {
 const animProv = {
   duration: 1200,            // Smooth fade-in + camera glide transition duration
   rippleStart: 0,            // Ripple starts immediately during province fade-in
-  rippleDuration: 5000,
+  rippleDuration: 8000,
 };
 
 // ─── Interaction & Raycasting Setup ───
@@ -771,7 +771,7 @@ async function init() {
         }
         if (chinaRipple) {
           chinaRipple.setVisible(true);
-          chinaRipple.update(stateElapsed, 1000, 5000, true); // loop = true
+          chinaRipple.update(stateElapsed, 1000, 8000, true); // loop = true
         }
       }
 
@@ -860,7 +860,7 @@ async function init() {
       // Update China ripple and neighbors continuously
       if (chinaRipple) {
         chinaRipple.setVisible(true);
-        chinaRipple.update(stateElapsed, 1000, 5000, true);
+        chinaRipple.update(stateElapsed, 1000, 8000, true);
       }
       if (chinaNeighbors) {
         chinaNeighbors.setVisible(true);
@@ -1097,7 +1097,7 @@ async function init() {
           setMapOpacityDirect(poppedParent, fadeInProgress);
           
           if (poppedParent.ripple) {
-            poppedParent.ripple.update(stateElapsed - 500, 0, 5000, true);
+            poppedParent.ripple.update(stateElapsed - 500, 0, 8000, true);
           }
         } else {
           chinaMap.mapGroup.visible = true;
@@ -1112,7 +1112,7 @@ async function init() {
           setChinaMapOpacity(fadeInProgress);
 
           if (chinaRipple) {
-            chinaRipple.update(stateElapsed - 500, 0, 5000, true);
+            chinaRipple.update(stateElapsed - 500, 0, 8000, true);
           }
         }
       }
