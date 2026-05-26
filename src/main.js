@@ -595,31 +595,67 @@ async function loadProvinceMap(provinceName, id) {
   fetchGeoData(provinceName, id);
 }
 
+function showToast(message, duration = 3000) {
+  let toast = document.getElementById('error-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'error-toast';
+    toast.style.cssText = `
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(20, 30, 50, 0.92); color: #ff6b6b; padding: 12px 28px;
+      border-radius: 8px; font-size: 14px; z-index: 10000;
+      border: 1px solid rgba(255,107,107,0.3); backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: opacity 0.4s;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.opacity = '1';
+  toast.style.display = 'block';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => { toast.style.display = 'none'; }, 400);
+  }, duration);
+}
+
+async function fetchWithRetry(url, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(url, { referrerPolicy: 'no-referrer' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.warn(`[Map] Fetch attempt ${i + 1} failed for ${url}:`, e.message);
+      if (i === retries) throw e;
+      await new Promise(r => setTimeout(r, 500 * (i + 1)));
+    }
+  }
+}
+
 async function fetchGeoData(provinceName, id) {
   let geoData;
   if (id === 44) {
     const res = await fetch('./guangdong.json');
     geoData = await res.json();
   } else {
+    let urlId = id;
+    if (typeof id === 'number' && id < 100) {
+      urlId = id * 10000;
+    }
+    console.log(`[Map] Loading geo data: name=${provinceName}, id=${id}, urlId=${urlId}`);
+
     try {
-      let urlId = id;
-      if (typeof id === 'number' && id < 100) {
-        urlId = id * 10000;
-      }
-      const res = await fetch(`https://geo.datav.aliyun.com/areas_v3/bound/${urlId}_full.json`);
-      if (!res.ok) throw new Error('Full map not found');
-      geoData = await res.json();
-    } catch (e) {
+      // Try full map with sub-regions first
+      geoData = await fetchWithRetry(`https://geo.datav.aliyun.com/areas_v3/bound/${urlId}_full.json`);
+    } catch (e1) {
+      console.warn('[Map] Full map failed, trying boundary only...');
       try {
-        let urlId = id;
-        if (typeof id === 'number' && id < 100) {
-          urlId = id * 10000;
-        }
-        const res = await fetch(`https://geo.datav.aliyun.com/areas_v3/bound/${urlId}.json`);
-        if (!res.ok) throw new Error('Province boundary not found');
-        geoData = await res.json();
-      } catch (err) {
-        alert('数据加载失败，请检查网络后重试');
+        // Fallback: boundary-only (no sub-regions)
+        geoData = await fetchWithRetry(`https://geo.datav.aliyun.com/areas_v3/bound/${urlId}.json`);
+      } catch (e2) {
+        console.error('[Map] All fetch attempts failed for', urlId);
+        showToast('数据加载失败，请检查网络后重试');
         document.getElementById('loading-overlay').classList.remove('visible');
         setParentMapOpacity(1.0);
         
