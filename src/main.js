@@ -1022,7 +1022,7 @@ async function init() {
       
       // Update ripples
       if (activeProvinceMap.ripple) {
-        activeProvinceMap.ripple.update(stateElapsed, animProv.rippleStart, animProv.rippleDuration);
+        activeProvinceMap.ripple.update(stateElapsed, animProv.rippleStart, animProv.rippleDuration, true);
       }
 
       // Update raycaster for hovering in active sub-map
