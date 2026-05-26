@@ -45,8 +45,8 @@ export function createBackground(scene) {
 
         // Very dark blue base tint — subdued to let map stand out
         vec3 baseColor = vec3(0.008, 0.015, 0.035);
-        // Minimal texture pattern — just enough to add depth
-        vec3 finalColor = baseColor + vec3(lum) * vec3(0.008, 0.016, 0.032);
+        // Enhanced texture pattern for high-fidelity ground detail (increased 4x)
+        vec3 finalColor = baseColor + vec3(lum) * vec3(0.032, 0.064, 0.128);
 
         // Radial falloff — fade to fully transparent WELL before geometry edge
         float d = length(vUv - 0.5) * 2.0;

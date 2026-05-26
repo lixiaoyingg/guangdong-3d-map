@@ -40,9 +40,9 @@ export function createRipple(geoData, scene) {
       void main() {
         float dist = distance(vWorldXZ, uCenter);
 
-        // Dot grid pattern: dot spacing (approx 0.3 units)
-        vec2 gridUV = fract(vWorldXZ * 3.333) - 0.5;
-        float dotMask = smoothstep(0.18, 0.05, length(gridUV));
+        // Dot grid pattern: dot spacing (approx 0.16 units, denser)
+        vec2 gridUV = fract(vWorldXZ * 6.0) - 0.5;
+        float dotMask = smoothstep(0.12, 0.02, length(gridUV));
 
         // Wave peak radius
         float currentRadius = uRippleProgress * uMaxRadius;
@@ -59,17 +59,17 @@ export function createRipple(geoData, scene) {
         // Base background dots (extremely faint, dark blue)
         float baseDots = dotMask * 0.04;
 
-        // Glowing wave dots (bright cyan/blue)
-        float waveDots = dotMask * waveEnvelope * 1.5;
+        // Glowing wave dots (weakened radiating intensity)
+        float waveDots = dotMask * waveEnvelope * 0.6;
 
         float finalIntensity = baseDots + waveDots;
         vec3 dotColor = vec3(0.0, 0.65, 1.0); // Bright Cyan-blue
 
         vec3 finalColor = dotColor * finalIntensity;
 
-        // Add a white core highlight to the wave peak
-        if (waveDots > 0.1) {
-          finalColor += vec3(0.5, 0.8, 1.0) * (waveDots - 0.1) * 0.8;
+        // Subtle core highlight on wave peak
+        if (waveDots > 0.05) {
+          finalColor += vec3(0.3, 0.6, 1.0) * (waveDots - 0.05) * 0.3;
         }
 
         // Edge falloff for the plane
@@ -96,7 +96,7 @@ export function createRipple(geoData, scene) {
     setVisible(visible) {
       mesh.visible = visible;
     },
-    update(elapsed, rippleStart, rippleDuration) {
+    update(elapsed, rippleStart, rippleDuration, loop = false) {
       if (elapsed < rippleStart) {
         material.uniforms.uRippleProgress.value = 0.0;
         mesh.visible = false;
@@ -105,7 +105,9 @@ export function createRipple(geoData, scene) {
 
       mesh.visible = true;
       const rippleElapsed = elapsed - rippleStart;
-      const progress = Math.min(rippleElapsed / rippleDuration, 1.0);
+      const progress = loop
+        ? (rippleElapsed % rippleDuration) / rippleDuration
+        : Math.min(rippleElapsed / rippleDuration, 1.0);
 
       // Easing: starts fast and slows down gently (easeOutQuad)
       const easedProgress = 1.0 - Math.pow(1.0 - progress, 2);

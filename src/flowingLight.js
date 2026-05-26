@@ -16,8 +16,11 @@ export function createFlowingLight(geoData, scene) {
   const segmentMap = new Map();
 
   geoData.features.forEach(feature => {
-    const { coordinates } = feature.geometry;
-    coordinates.forEach(polygon => {
+    if (!feature || !feature.geometry) return;
+    const { coordinates, type } = feature.geometry;
+    if (!coordinates) return;
+    const polygons = type === 'MultiPolygon' ? coordinates : [coordinates];
+    polygons.forEach(polygon => {
       const ring = polygon[0];
       if (ring.length < 4) return;
       for (let i = 0; i < ring.length - 1; i++) {
@@ -69,11 +72,12 @@ export function createFlowingLight(geoData, scene) {
     for (let i = 0; i < points.length; i += step) {
       sampledPoints.push(points[i]);
     }
-    // Close the loop
+    // Ensure no duplicate start/end points before creating a closed curve
     if (sampledPoints.length > 2 &&
-        sampledPoints[0].distanceTo(sampledPoints[sampledPoints.length - 1]) > 0.01) {
-      sampledPoints.push(sampledPoints[0].clone());
+        sampledPoints[0].distanceTo(sampledPoints[sampledPoints.length - 1]) < 0.1) {
+      sampledPoints.pop();
     }
+
     if (sampledPoints.length < 4) return;
 
     // Compute cumulative distances for UV mapping
@@ -82,15 +86,16 @@ export function createFlowingLight(geoData, scene) {
       distances.push(distances[i - 1] + sampledPoints[i].distanceTo(sampledPoints[i - 1]));
     }
     const totalLength = distances[distances.length - 1];
+
     // 只保留长度大于 10.0 的广东主大陆边界，过滤掉孤立的沿海小岛和东沙群岛，防止在小岛上形成闭合的发光圈
     if (totalLength < 10.0) return;
 
-    // Create a smooth CatmullRomCurve3 from sampled points
+    // Create a smooth CatmullRomCurve3 from sampled points (closed loop)
     const curve = new THREE.CatmullRomCurve3(sampledPoints, true, 'centripetal', 0.5);
 
     // Create tube geometry along the path — THIN tube
     const tubeSegments = Math.min(800, sampledPoints.length * 2);
-    const tubeRadius = 0.006; // thin tube for subtle glow
+    const tubeRadius = 0.004; // extremely thin, subtle and elegant
     const radialSegs = 4;     // fewer radial segments for thinner tube
     const tubeGeo = new THREE.TubeGeometry(curve, tubeSegments, tubeRadius, radialSegs, true);
 
@@ -139,11 +144,6 @@ export function createFlowingLight(geoData, scene) {
             float trailDiff = uHeadPos - vPathFrac;
             if (trailDiff < 0.0) trailDiff += 1.0;
 
-            // Beyond trail length → fully transparent
-            if (trailDiff > uTrailLength && trailDiff < (1.0 - 0.005)) {
-              discard;
-            }
-
             // Gradient from head (0) to tail (1)
             float t = clamp(trailDiff / uTrailLength, 0.0, 1.0);
 
@@ -152,30 +152,41 @@ export function createFlowingLight(geoData, scene) {
             vec3 midColor = vec3(0.15, 0.55, 0.9);
             vec3 tailColor = vec3(0.03, 0.12, 0.35);
 
-            vec3 color;
+            vec3 cometColor;
             if (t < 0.1) {
-              color = mix(headColor, midColor, t / 0.1);
+              cometColor = mix(headColor, midColor, t / 0.1);
             } else {
-              color = mix(midColor, tailColor, (t - 0.1) / 0.9);
+              cometColor = mix(midColor, tailColor, (t - 0.1) / 0.9);
             }
 
-            // Opacity: smooth power falloff, multiplied by global opacity
-            float alpha = pow(1.0 - t, 2.5) * uOpacity;
+            float cometAlpha = pow(1.0 - t, 1.4);
+            // Beyond trail length → comet contribution is zero
+            if (trailDiff > uTrailLength && trailDiff < (1.0 - 0.005)) {
+              cometAlpha = 0.0;
+            }
 
-            gl_FragColor = vec4(color, alpha);
+            // Subtle base glow along the entire path
+            vec3 baseColor = vec3(0.02, 0.15, 0.35);
+            float baseAlpha = 0.18;
+
+            vec3 finalColor = mix(baseColor, cometColor, cometAlpha);
+            float finalAlpha = max(baseAlpha, cometAlpha) * uOpacity;
+
+            gl_FragColor = vec4(finalColor, finalAlpha);
           }
         `,
         transparent: true,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
+        depthTest: false, // disable depthTest to make the glowing lines/comets always visible
         side: THREE.DoubleSide,
         toneMapped: false,
       });
     }
 
     // Create 3 evenly distributed trails along each chain
-    const trailOffsets = [0, 1/3, 2/3];
-    const trailLength = 0.80; // long trailing light
+    const trailOffsets = [0, 0.333, 0.666];
+    const trailLength = 0.44; // 2x length of comet trails (0.44)
 
     trailOffsets.forEach(offset => {
       const mat = createTrailMaterial(trailLength);

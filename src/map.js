@@ -31,6 +31,7 @@ export function createMap(geoData, scene) {
     uniforms: {
       wenliMap: { value: wenliTexture },
       opacity: { value: 0 },
+      uHover: { value: 0.0 },
     },
     vertexShader: `
       varying vec3 vWorldPos;
@@ -43,6 +44,7 @@ export function createMap(geoData, scene) {
     fragmentShader: `
       uniform sampler2D wenliMap;
       uniform float opacity;
+      uniform float uHover;
       varying vec3 vWorldPos;
       void main() {
         // Dual-sampling at different rotations to eliminate tile seams
@@ -60,8 +62,11 @@ export function createMap(geoData, scene) {
         float lum = dot(texColor, vec3(0.299, 0.587, 0.114));
         // Dark blue base
         vec3 baseColor = vec3(0.03, 0.06, 0.13);
-        // Texture pattern adds visible detail
+        // Texture pattern adds visible detail (restored to original values)
         vec3 finalColor = baseColor + vec3(lum) * vec3(0.05, 0.09, 0.16);
+
+        // Add beautiful neon glow when hovered
+        finalColor += vec3(0.0, 0.55, 1.0) * uHover * 0.45;
 
         gl_FragColor = vec4(finalColor, opacity);
       }
@@ -80,6 +85,7 @@ export function createMap(geoData, scene) {
       topColor: { value: new THREE.Color(0x050a12) },
       opacity: { value: 0 },
       extrudeDepth: { value: EXTRUDE_DEPTH },
+      uHover: { value: 0.0 },
     },
     vertexShader: `
       varying float vLocalY;
@@ -94,6 +100,7 @@ export function createMap(geoData, scene) {
       uniform vec3 topColor;
       uniform float opacity;
       uniform float extrudeDepth;
+      uniform float uHover;
       varying float vLocalY;
       void main() {
         // Gradient: t=0 at bottom (blue), t=1 at top (near-black)
@@ -102,6 +109,10 @@ export function createMap(geoData, scene) {
         // Glow at the very bottom edge
         float edgeGlow = smoothstep(0.15, 0.0, t) * 0.35;
         color += vec3(0.0, 0.3, 0.8) * edgeGlow;
+
+        // Add side hover glow
+        color += vec3(0.0, 0.55, 1.0) * uHover * 0.45;
+
         gl_FragColor = vec4(color, opacity);
       }
     `,
@@ -111,9 +122,12 @@ export function createMap(geoData, scene) {
   });
 
   geoData.features.forEach(feature => {
-    const { coordinates } = feature.geometry;
+    if (!feature || !feature.geometry) return;
+    const { coordinates, type } = feature.geometry;
+    if (!coordinates) return;
+    const polygons = type === 'MultiPolygon' ? coordinates : [coordinates];
 
-    coordinates.forEach(polygon => {
+    polygons.forEach(polygon => {
       if (polygon[0].length < 4) return;
 
       // Outer ring → shape
@@ -150,6 +164,13 @@ export function createMap(geoData, scene) {
           topShaderMaterial.clone(),
           sideShaderMaterial.clone(),
         ]);
+        
+        // Store properties in mesh userData for click/hover identification
+        mesh.userData = {
+          properties: feature.properties,
+          isMapMesh: true
+        };
+
         // Start completely flat
         mesh.scale.y = 0.001;
         mapGroup.add(mesh);
@@ -171,9 +192,9 @@ export function createMap(geoData, scene) {
 
       const lineGeometry = new THREE.BufferGeometry().setFromPoints(outlinePoints);
       const outlineMaterial = new THREE.LineBasicMaterial({
-        color: 0x00a2e0,
+        color: 0x00ffff,
         transparent: true,
-        opacity: 0,
+        opacity: 0.8,
         depthWrite: false,
       });
       const outlineLine = new THREE.Line(lineGeometry, outlineMaterial);

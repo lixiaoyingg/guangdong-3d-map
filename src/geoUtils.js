@@ -19,8 +19,11 @@ export function computeCenterAndScale(geoData) {
   let minY = Infinity, maxY = -Infinity;
 
   geoData.features.forEach(feature => {
-    const coords = feature.geometry.coordinates;
-    coords.forEach(polygon => {
+    if (!feature || !feature.geometry) return;
+    const { coordinates, type } = feature.geometry;
+    if (!coordinates) return;
+    const polygons = type === 'MultiPolygon' ? coordinates : [coordinates];
+    polygons.forEach(polygon => {
       polygon.forEach(ring => {
         ring.forEach(([x, y]) => {
           minX = Math.min(minX, x);

@@ -4,20 +4,60 @@ import { computeCenterAndScale } from './geoUtils.js';
 const EXTRUDE_DEPTH = 0.35;
 
 /**
- * Create a glowing outline of Guangdong province that draws itself progressively.
- * Uses a double-line technique: a bright core line + a wider soft glow line behind it.
- * Chains are drawn SEQUENTIALLY.
+ * Create a glowing outline of a province/country that draws itself progressively.
+ * Uses flat ribbon meshes instead of THREE.Line to guarantee consistent thickness,
+ * but with extremely thin and soft opacity settings to avoid harshness/dazzling.
  */
 export function createOutlineDrawing(geoData, scene) {
   const { center, scale } = computeCenterAndScale(geoData);
   const group = new THREE.Group();
 
-  // Collect outer boundary segments (province outline only)
+  // Thin ribbon widths for a soft, delicate appearance
+  const widthCore = 0.007 / scale;
+  const widthGlow = 0.022 / scale;
+
+  // Helper to generate a flat ribbon geometry from 3D points
+  function createRibbonGeometry(points3d, width) {
+    const vertices = [];
+    const indices = [];
+
+    for (let i = 0; i < points3d.length; i++) {
+      const curr = points3d[i];
+      const next = points3d[i + 1] || points3d[i];
+      const prev = points3d[i - 1] || points3d[i];
+
+      const dir = new THREE.Vector3().subVectors(next, prev).normalize();
+      const perp = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(width * 0.5);
+
+      vertices.push(curr.x - perp.x, curr.y, curr.z - perp.z);
+      vertices.push(curr.x + perp.x, curr.y, curr.z + perp.z);
+
+      if (i < points3d.length - 1) {
+        const a = i * 2;
+        const b = i * 2 + 1;
+        const c = (i + 1) * 2;
+        const d = (i + 1) * 2 + 1;
+        indices.push(a, c, b);
+        indices.push(b, c, d);
+      }
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  // Collect outer boundary segments
   const segmentMap = new Map();
 
   geoData.features.forEach(feature => {
-    const { coordinates } = feature.geometry;
-    coordinates.forEach(polygon => {
+    if (!feature || !feature.geometry) return;
+    const { coordinates, type } = feature.geometry;
+    if (!coordinates) return;
+    const polygons = type === 'MultiPolygon' ? coordinates : [coordinates];
+    polygons.forEach(polygon => {
       const ring = polygon[0];
       if (ring.length < 4) return;
       for (let i = 0; i < ring.length - 1; i++) {
@@ -58,46 +98,30 @@ export function createOutlineDrawing(geoData, scene) {
     const points3d = chain.map(([x, y]) =>
       new THREE.Vector3(
         (x - center[0]) * scale,
-        0.01,
+        0.015, // slightly above floor
         -(y - center[1]) * scale
       )
     );
 
     const totalVertices = points3d.length;
 
-    // ─── Outer glow line (wider, softer) ───
-    const glowGeometry = new THREE.BufferGeometry().setFromPoints(points3d);
-    const glowMaterial = new THREE.LineBasicMaterial({
-      color: 0x0088ff,
-      transparent: true,
-      opacity: 0.4,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      toneMapped: false,
-      linewidth: 1,
-    });
-    const glowLine = new THREE.Line(glowGeometry, glowMaterial);
-    glowGeometry.setDrawRange(0, 0);
-    group.add(glowLine);
-
-    // ─── Core bright line ───
+    // ─── Outer glow ribbon mesh (wider, extremely soft) ───
+    const glowGeometry = createRibbonGeometry(points3d, widthGlow);
+    // ─── Core bright native line (sharp, single-pixel) ───
     const coreGeometry = new THREE.BufferGeometry().setFromPoints(points3d);
     const coreMaterial = new THREE.LineBasicMaterial({
       color: 0x44ddff,
       transparent: true,
-      opacity: 1.0,
+      opacity: 0.80, // Sharp and visible
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      toneMapped: false,
     });
     const coreLine = new THREE.Line(coreGeometry, coreMaterial);
+    coreLine.renderOrder = 5;
     coreGeometry.setDrawRange(0, 0);
     group.add(coreLine);
 
     drawLines.push({
-      glowLine,
-      glowGeometry,
-      glowMaterial,
       coreLine,
       coreGeometry,
       coreMaterial,
@@ -113,7 +137,7 @@ export function createOutlineDrawing(geoData, scene) {
   const totalAllVertices = cumulativeVertices;
 
   /**
-   * Update the drawing progress (0 = nothing drawn, 1 = fully drawn)
+   * Update drawing progress (0 = nothing drawn, 1 = fully drawn)
    */
   function update(progress) {
     const globalVertex = Math.floor(totalAllVertices * progress);
@@ -130,7 +154,7 @@ export function createOutlineDrawing(geoData, scene) {
         count = globalVertex - item.startVertex;
       }
 
-      item.glowGeometry.setDrawRange(0, count);
+      // Native line uses 1 index per vertex.
       item.coreGeometry.setDrawRange(0, count);
     });
   }
@@ -140,8 +164,7 @@ export function createOutlineDrawing(geoData, scene) {
    */
   function setOpacity(opacity) {
     drawLines.forEach(item => {
-      item.glowMaterial.opacity = opacity * 0.4;
-      item.coreMaterial.opacity = opacity;
+      item.coreMaterial.opacity = opacity * 0.80;
     });
   }
 
